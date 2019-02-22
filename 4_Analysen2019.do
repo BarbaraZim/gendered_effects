@@ -1,15 +1,24 @@
 cd C:\Users\bzimmermann\switchdrive\gendered_paths\Daten\Analysen
 
-use sequences_withPISA_analyses, clear
+use sequences_withPISA_clusters, clear
 
 ***color scheme
-set scheme s1mono
-*set scheme plotplainblind
+*set scheme s1mono
+*set scheme s2color // stata default
+
 
 grstyle init
 grstyle set plain, grid compact
 grstyle set legend , nobox
 grstyle clockdir legend_position 6
+grstyle set color black%50, plots(1): p1
+grstyle color p1markline black%50
+grstyle color p1markfill black
+grstyle set color sky%50, plots(2): p2
+grstyle color p2markline sky%50
+grstyle color p2markfill sky
+
+
 
 ****Svyset***
 svyset psu [pweight=wt9_kal], strata(strata) fpc(fpc) vce(linearized) singleunit(scaled)
@@ -19,17 +28,17 @@ svyset psu [pweight=wt9_kal], strata(strata) fpc(fpc) vce(linearized) singleunit
 // -------------------------------------------------------------------------------------------------
 
 *Das quadratische Modell hat eine minimal bessere Modellanpassung bei read & natmat
-center hparisei
+*center hparisei
 
 svy: reg wleread i.female##c.c_hparisei##c.c_hparisei
 eststo read
 two (scatter wleread hparisei , mc(*0.3) ms(o) msize(tiny))                                                                                       ///
     (qfitci wleread hparisei if  female,   lc(gs12) lw(*2) clstyle(p1) acol(sky%50)   alcol(%0) range(10 90) clc(sky))                                                         ///
-    (qfitci wleread hparisei if !female,   lc(gs12) lw(*2) clstyle(p1) acol(black%50) alcol(%0) range(10 90)),                                                                 ///
+    (qfitci wleread hparisei if !female,   lc(gs12) lw(*2) clstyle(p1) acol(black%50) alcol(%0) range(10 90) clc(black)),                                                                 ///
         xtitle("Parent's Highest Social Status (ISEI)") xlabel(10(20)90)                                                                        ///
         ytitle("PISA Estimates of Reading Skills")      ylabel(200 500 800) legend(order(3 "female" 5 "male") subtitle(Quadratic Fit:, size(*0.8))) ///
         yscale(titlegap(*10)) ///
-         title("Reading Skills at the End of Compulsory School")                                                              ///
+         /*title("Reading Skills at the End of Compulsory School")*/                                                              ///
         xsize(9.45) ysize(7) scale(1.15) name(read, replace)
 
 *natmat
@@ -41,7 +50,7 @@ two (scatter natmat hparisei , mc(*0.3) ms(o) msize(tiny))                      
         xtitle("Parent's Highest Social Status (ISEI)") xlabel(10(20)90)                                                                        ///
         ytitle("PISA Estimates of Math & Science Skills")      ylabel(200 500 800) legend(order(3 "female" 5 "male") subtitle(Quadratic Fit:, size(*0.8))) ///
         yscale(titlegap(*10)) ///
-         title("Math & Science Skills at the End of Compulsory School")                                                              ///
+        /* title("Math & Science Skills at the End of Compulsory School")     */                                                         ///
         xsize(9.45) ysize(7) scale(1.15) name(natmat, replace)
 
 graph combine read natmat, xsize(10)
@@ -59,24 +68,40 @@ esttab read natmat using "..\Analysen\tables\table2.rtf", replace se label compr
 // OMA oder DYN? Bei 5 gruppiert DYN die höhere Fachschule besser.
 // -------------------------------------------------------------------------------------------------
 
-chronogram state*, prop ///
-    by(cl_dyn5, rows(1) legend(position(4)) note("") graphregion(margin(small)) scale(1) title(Clusters of Educational Trajectories)) ///
-    tlabel(487(24)653, format(%tmCCYY) /*angle(45)*/) legend(order( - " " 1 2 3 4 5 6 7 8 9 10 11)) ///
-    xsize(20) ysize(3.5) name(dyn5, replace) aspectratio(0.75, placement(left))
 
-graph export "..\Analysen\graphs\Figure2.png", replace
+*neu linear: Feb. 19 und neu direkter und total Effekt*
 
-*neu linear: Feb. 19*
-svy: mlogit cl_dyn5 i.female##c.hparisei##c.hparisei c.wleread##c.natmat // warum interaktion zw. read & math?
+*total*
+svy: mlogit cl_dyn5 i.female##c.hparisei
 eststo probmod
 set matsize 10000
 qui margins female, at(hparisei = (10(1)90))
-marginsplot, by(_outcome) byopts(rows(1) legend(position(4)) graphregion(margin(small)) plotregion(margin(l=2)) ///
-                                    title("Educational Trajectories:  Predicted Probabilities, Net of Reading & Maths/Sciences Skills")) subtitle("")  ///
-        recastci(rline) ciopts(lc(gs12) lw(*0.7)) recast(line) plot2(clc(sky)) ///
+marginsplot, by(_outcome) byopts(rows(1) legend(position(6)) graphregion(margin(small)) /*plotregion(margin(l=2))*/ ///
+                                    title("")) subtitle("")  ///
+        recastci(rline) ciopts(lc(gs12) lw(*0.7)) recast(line) plot1(clc(black)) plot2(clc(sky)) ///
         xtitle("Parent's Highest Social Status (ISEI)") ytitle(Predicted Probability) ///
         xlabel(10 50 90) ///
-        xsize(20) ysize(3.5) aspectratio(0.76, placement(left)) ///
+        xsize(20) ysize(3.5) /*aspectratio(0.76, placement(left))*/ ///
+        name(marginscluster, replace)
+forval i = 1/5 {
+    local label : label clusters `i'
+    addplot marginscluster `i':, subtitle(`label') norescaling
+}
+addplot marginscluster:, legend(order(4 "female" 3 "male")) norescaling
+
+graph export "..\Analysen\graphs\Figure3.png", replace
+
+*direct*
+svy: mlogit cl_dyn5 i.female##c.hparisei c.wleread##c.natmat
+eststo probmod
+set matsize 10000
+qui margins female, at(hparisei = (10(1)90))
+marginsplot, by(_outcome) byopts(rows(1) legend(position(6)) graphregion(margin(small)) /*plotregion(margin(l=2))*/ ///
+                                    title("")) subtitle("")  ///
+        recastci(rline) ciopts(lc(gs12) lw(*0.7)) recast(line) plot1(clc(black)) plot2(clc(sky)) ///
+        xtitle("Parent's Highest Social Status (ISEI)") ytitle(Predicted Probability) ///
+        xlabel(10 50 90) ///
+        xsize(20) ysize(3.5) /*aspectratio(0.76, placement(left))*/ ///
         name(marginscluster, replace)
 forval i = 1/5 {
     local label : label clusters `i'
@@ -113,15 +138,13 @@ qui margins, at(hparisei = (10(1)90)) over(female) post coefl
 eststo direct
 
 
-svy: reg current_isei i.cl_dyn5##(i.female##c.hparisei##c.hparisei i.not_current) if !(cl_dyn5==3 & !female)
-
    coefplot (total,       keep(*1.female)            at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
             (total,       keep(*0.female)            at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
             , bylabel(Total Effect) ///
          || (direct,      keep(*1.female)            at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
             (direct,      keep(*0.female)            at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
             , bylabel(Direct Effect, Net of Clusters) ///
-         || , byopts(rows(1) holes(8 9 10) legend(position(4)) title("Effects on Social Status (ISEI) in 2014 (Age ~30)") ///
+         || , byopts(rows(1) holes(8 9 10) legend(position(6)) /*title("Effects on Social Status (ISEI) in 2014 (Age ~30)")*/ ///
                         graphregion(margin(small)) plotregion(margin(l=4)) iscale(*1.35) ixax) ///
               xtitle("Parent's Highest Social Status (ISEI)") ytitle("Own Social Status (ISEI)") ///
               xlabel(10 50 90) ///
@@ -146,8 +169,8 @@ svy: reg curr i.cl_dyn5 not_c if fem==1
 margins cl_dyn5, post coefl
 eststo Women
 
-coefplot Men Women, xline(0) drop(Men:3.cl_dyn5) title(Status) name(status, replace)
-graph export "..\Analysen\graphs\Figure7.png", replace
+coefplot Men Women, xline(0) drop(Men:3.cl_dyn5) /*title(Status)*/ name(status, replace)
+graph export "..\Analysen\graphs\Figure6.png", replace
 
 
 
@@ -178,13 +201,13 @@ eststo direct
          || (direct,      keep(*1.female) at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
             (direct,      keep(*0.female) at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
             , bylabel(Direct Effect, Net of Clusters) ///
-         || , byopts(rows(1) holes(8 9 10) legend(position(4)) title("Effects on salary in 2014 (Age ~30)") ///
+         || , byopts(rows(1) holes(8 9 10) legend(position(6)) /*title("Effects on salary in 2014 (Age ~30)")*/ ///
                         graphregion(margin(small)) plotregion(margin(l=4)) iscale(*1.35) ixax) ///
               xtitle("Parent's Highest Social Status (ISEI)") ytitle("Salary") ///
               xlabel(10 50 90) ///
               xsize(15) ysize(6) aspectratio(0.6072, placement(left)) name(Effects, replace)
 
-graph export "..\Analysen\graphs\Figure6.png", replace
+graph export "..\Analysen\graphs\Figure7.png", replace
 
 *******Tabelle
 esttab totalT directT using "..\Analysen\tables\table5.rtf", replace se label compress nogaps interaction(*) nobaselevels wide
@@ -202,144 +225,16 @@ svy: reg lnHighestInc i.cl_dyn5 self if fem==1
 margins cl_dyn5, post coefl
 eststo Women
 
-coefplot Men Women, xline(0) drop(Men:3.cl_dyn5) title(Salary) name(salary, replace)
+coefplot Men Women, xline(0) drop(Men:3.cl_dyn5) /*title(Salary)*/ name(salary, replace)
 graph export "..\Analysen\graphs\Figure8.png", replace
 
-**********************
-*Mit Ende Ausbildung*
-**********************
-svy: reg lnHighestInc i.female##c.hparisei self c.lastmonth_educ##c.lastmonth_educ if !(cl_dyn5==3 & !female)
-qui margins, at(hparisei = (10(1)90)) over(female) post coefl
-eststo total
-
-svy: reg lnHighestInc i.female##c.hparisei self i.cl_dyn5 c.lastmonth_educ##c.lastmonth_educ if !(cl_dyn5==3 & !female)
-qui margins, at(hparisei = (10(1)90)) over(female) post coefl
-eststo direct
-
-coefplot   (total,       keep(*1.female) at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
-           (total,       keep(*0.female) at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
-           , bylabel(Total Effect) ///
-        || (direct,      keep(*1.female) at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
-           (direct,      keep(*0.female) at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
-           , bylabel(Direct Effect, Net of Clusters) ///
-        || , byopts(rows(1) holes(8 9 10) legend(position(4)) title("Effects on salary in 2014 (Age ~30)") ///
-                       graphregion(margin(small)) plotregion(margin(l=4)) iscale(*1.35) ixax) ///
-             xtitle("Parent's Highest Social Status (ISEI)") ytitle("Salary") ///
-             xlabel(10 50 90) ///
-             xsize(15) ysize(6) aspectratio(0.6072, placement(left)) name(Effects, replace)
-
-   graph export 201812_effectsSALARY_total-dirDynSVYeduc.png, replace
-
-*Nur wer mind. vor 2 Jahren abgeschl. hat*
-svy: reg lnHighestInc i.female##c.hparisei self if !(cl_dyn5==3 & !female) & month_since_endeduc>23
-qui margins, at(hparisei = (10(1)90)) over(female) post coefl
-eststo total
-
-svy: reg lnHighestInc i.female##c.hparisei self i.cl_dyn5 if !(cl_dyn5==3 & !female) & month_since_endeduc>23
-qui margins, at(hparisei = (10(1)90)) over(female) post coefl
-eststo direct
-
-coefplot   (total,       keep(*1.female) at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
-           (total,       keep(*0.female) at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
-           , bylabel(Total Effect) ///
-        || (direct,      keep(*1.female) at(at[.,3]) recast(line) clstyle(p1) clc(sky) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(female)) ///
-           (direct,      keep(*0.female) at(at[.,3]) recast(line) clstyle(p1) clc(gs0) ciopts(recast(rline) lc(gs12) lw(*0.5)) label(male) )  ///
-           , bylabel(Direct Effect, Net of Clusters) ///
-        || , byopts(rows(1) holes(8 9 10) legend(position(4)) title("Effects on salary in 2014 (Age ~30)") ///
-                       graphregion(margin(small)) plotregion(margin(l=4)) iscale(*1.35) ixax) ///
-             xtitle("Parent's Highest Social Status (ISEI)") ytitle("Salary") ///
-             xlabel(10 50 90) ///
-             xsize(15) ysize(6) aspectratio(0.6072, placement(left)) name(Effects, replace)
-
-       graph export 201812_effectsSALARY_total-dirDynSVYeducS.png, replace
 
 ********************************************************************************
-********************************************************************************
+set scheme plotplainblind
 
-*Zusätzliche Analysen mit Terzilen von Parental ISEI und Klassen
+chronogram state*, prop ///
+    by(cl_dyn5, rows(1) legend(position(4)) note("") graphregion(margin(small)) scale(1) /*title(Clusters of Educational Trajectories)*/) ///
+    tlabel(487(24)653, format(%tmCCYY) /*angle(45)*/) legend(order( - " " 1 2 3 4 5 6 7 8 9 10 11)) ///
+    xsize(20) ysize(3.5) name(dyn5, replace) aspectratio(0.75, placement(left))
 
-*BISHER NICHT VERWENDET!!!!!
-
-*Net of reading/science skills
-foreach var of varlist cl_dyn51-cl_dyn55 {
-      svy: logit `var' i.parentegprec c.wleread##c.natmat if fem==0
-	  margins parentegprec, post coefl
-      estimates store m_`var'
-      svy: logit `var' i.parentegprec c.wleread##c.natmat if fem==1
-	  margins parentegprec, post coefl
-      estimates store f_`var'
-   }
-
-coefplot (m_cl_dyn51, label(Men)) (f_cl_dyn51, label(Women)), bylabel("Vocational") || ///
-         (m_cl_dyn52, label(Men)) (f_cl_dyn52, label(Women)), bylabel("Voc. & Tertiary") || ///
-		 (m_cl_dyn53, label(Men)) (f_cl_dyn53, label(Women)), bylabel("Specialized Sec. & Tertiary") || ///
-		 (m_cl_dyn54, label(Men)) (f_cl_dyn54, label(Women)), bylabel("Academic Mixed") || ///
-		 (m_cl_dyn55, label(Men)) (f_cl_dyn55, label(Women)), bylabel("Academic") || ///
-		 , byopts(xrescale legend(position(4)))
-
-graph export probabilityclassNet.png, replace
-
-svy: mlogit cl_dyn5 i.parentegprec c.wleread##c.natmat if fem==0
-margins parentegprec, post
-eststo male
-
-svy: mlogit cl_dyn5 i.parentegprec c.wleread##c.natmat if fem==1
-margins parentegprec, post
-eststo female
-
-coefplot male female, keep(*:) drop(_cons) xline(0) name(coefdyn5, replace)  ///
-title(Probability of belonging to Cluster by parental status) swap
-
-
-*Tertiles of parental ISEI
-
- pctile hpterz = hparisei, nq(3)
-
- gen hpt =.
- replace hpt = 1 if hparisei<.
- replace hpt = 2 if hparisei<57
- replace hpt = 3 if hparisei<46
-
- label def hpt 1 "Upper Tertile" 2 "Middle Tertile" 3 "Lower Tertile"
- lab val hpt hpt
-
-foreach var of varlist cl_dyn51-cl_dyn55 {
-      svy: logit `var' i.hpt c.wleread##c.natmat if fem==0
-	  margins hpt, post coefl
-      estimates store m_`var'
-      svy: logit `var' i.hpt c.wleread##c.natmat if fem==1
-	  margins hpt, post coefl
-      estimates store f_`var'
-   }
-
-coefplot (m_cl_dyn51, label(Men)) (f_cl_dyn51, label(Women)), bylabel("Vocational") || ///
-         (m_cl_dyn52, label(Men)) (f_cl_dyn52, label(Women)), bylabel("Voc. & Tertiary") || ///
-		 (m_cl_dyn53, label(Men)) (f_cl_dyn53, label(Women)), bylabel("Specialized Sec. & Tertiary") || ///
-		 (m_cl_dyn54, label(Men)) (f_cl_dyn54, label(Women)), bylabel("Academic Mixed") || ///
-		 (m_cl_dyn55, label(Men)) (f_cl_dyn55, label(Women)), bylabel("Academic") || ///
-		 , byopts(xrescale legend(position(4)))
-
-graph export probabilityStatusTertileNet.png, replace
-
-/////////////////////////////////////////////////////
-
-svy: reg curr i.cl_dyn5 not_c if fem==0
-margins cl_dyn5, post coefl
-eststo Men1
-
-svy: reg curr i.cl_dyn5 not_c if fem==1
-margins cl_dyn5, post coefl
-eststo Women1
-
-svy: reg lnHighestInc i.cl_dyn5 self if fem==0
-margins cl_dyn5, post coefl
-eststo Men2
-
-svy: reg lnHighestInc i.cl_dyn5 self if fem==1
-margins cl_dyn5, post coefl
-eststo Women2
-
-coefplot (Men1, label(Men))  (Women1, label(Women)),  bylabel(Status)  || ///
-		 (Men2, label(Men))  (Women2, label(Women)),  bylabel(Salary) || ///
-		 , byopts(xrescale) xline(0) drop(Men:3.cl_dyn5)
-graph export statussalary.png, replace
+graph export "..\Analysen\graphs\Figure2.png", replace
