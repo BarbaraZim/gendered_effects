@@ -33,7 +33,7 @@ lab val cl_oma5 clusters
 tabulate cl_oma5, generate(cl_oma5) nofreq
 
 foreach i of numlist 1(1)5 { 
-	lab var cl_oma5`i' `" `: label clusters `i''"' 
+	lab var cl_oma5`i' `"`: label clusters `i''"' 
 	}
 
 ***Dynamic Hamming***
@@ -50,7 +50,7 @@ lab val cl_dyn5 clusters
 tabulate cl_dyn5, generate(cl_dyn5) nofreq
 
 foreach i of numlist 1(1)5 { 
-	lab var cl_dyn5`i' `" `: label clusters `i''"' 
+	lab var cl_dyn5`i' `"`: label clusters `i''"' 
 	}
 	
          save sequences_withPISA_clusters.dta, replace

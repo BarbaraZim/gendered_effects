@@ -11,13 +11,12 @@ grstyle init
 grstyle set plain, grid compact
 grstyle set legend , nobox
 grstyle clockdir legend_position 6
-grstyle set color black%50, plots(1): p1
+/*grstyle set color black%50, plots(1): p1
 grstyle color p1markline black%50
 grstyle color p1markfill black
 grstyle set color sky%50, plots(2): p2
 grstyle color p2markline sky%50
-grstyle color p2markfill sky
-
+grstyle color p2markfill sky */
 
 
 ****Svyset***
@@ -56,7 +55,7 @@ two (scatter natmat hparisei , mc(*0.3) ms(o) msize(tiny))                      
 graph combine read natmat, xsize(10)
 graph export "..\Analysen\graphs\Figure1.png", replace
 
-esttab read natmat using "..\Analysen\tables\table2.rtf", replace se label compress nogaps interaction(*) nobaselevels wide
+esttab read natmat using "..\Analysen\tables\table2.rtf", replace se label compress nogaps interaction(*) nobaselevels wide nonumb
 
 
 // -------------------------------------------------------------------------------------------------
@@ -89,7 +88,17 @@ forval i = 1/5 {
 }
 addplot marginscluster:, legend(order(4 "female" 3 "male")) norescaling
 
-graph export "..\Analysen\graphs\Figure3.png", replace
+graph export "..\Analysen\graphs\Figure4.png", replace
+
+*Tabelle*
+est restore probmod
+forvalue i = 1/`e(k_out)' {
+	margins, dydx(*)  predict(pr outcome(`i')) post
+	eststo prob`i', title(`: label (cl_dyn5) `i'')
+	est restore probmod
+}
+
+esttab prob? using "..\Analysen\tables\table3.rtf", mtitle nonumb replace se label compress nogaps nobaselevels 
 
 *direct*
 svy: mlogit cl_dyn5 i.female##c.hparisei c.wleread##c.natmat
@@ -109,17 +118,17 @@ forval i = 1/5 {
 }
 addplot marginscluster:, legend(order(4 "female" 3 "male")) norescaling
 
-graph export "..\Analysen\graphs\Figure4.png", replace
+graph export "..\Analysen\graphs\Figure5.png", replace
 
 *Tabelle*
 est restore probmod
 forvalue i = 1/`e(k_out)' {
 	margins, dydx(*)  predict(pr outcome(`i')) post
-	eststo prob`i', title(`: label (cl_oma4plus) `i'')
+	eststo prob`i', title(`: label (cl_dyn5) `i'')
 	est restore probmod
 }
 
-esttab prob? using "..\Analysen\tables\table3.rtf", mtitle nonumb replace se label compress nogaps nobaselevels wide
+esttab prob? using "..\Analysen\tables\table4.rtf", mtitle nonumb replace se label compress nogaps nobaselevels 
 
 // -------------------------------------------------------------------------------------------------
 // Step 3: Origin on Destination; Total, Direct, Conditional Effect
@@ -150,12 +159,12 @@ eststo direct
               xlabel(10 50 90) ///
               xsize(15) ysize(6) aspectratio(0.6072, placement(left)) name(Effects, replace)
 
-		graph export "..\Analysen\graphs\Figure5.png", replace
+		graph export "..\Analysen\graphs\Figure6.png", replace
 
 
 ********Tabelle
 
-esttab totalT directT using "..\Analysen\tables\table4.rtf", replace se label compress nogaps interaction(*) nobaselevels wide
+esttab totalT directT using "..\Analysen\tables\table5.rtf", replace se label compress nogaps interaction(*) nobaselevels wide nonumb
 
 ***********************
 *Effekte Clusters*
@@ -169,8 +178,11 @@ svy: reg curr i.cl_dyn5 not_c if fem==1
 margins cl_dyn5, post coefl
 eststo Women
 
-coefplot Men Women, xline(0) drop(Men:3.cl_dyn5) /*title(Status)*/ name(status, replace)
-graph export "..\Analysen\graphs\Figure6.png", replace
+coefplot (Men,   drop(3.cl_dyn5) color(black) ciopts(lc(black))) ///
+         (Women,                 color(sky)   ciopts(lc(sky))) ///
+		 , xline(0) order(1.cl_dyn5 2.cl_dyn5 3.cl_dyn5 4.cl_dyn5 5.cl_dyn5)
+graph export "..\Analysen\graphs\Figure7.png", replace
+
 
 
 
@@ -207,11 +219,11 @@ eststo direct
               xlabel(10 50 90) ///
               xsize(15) ysize(6) aspectratio(0.6072, placement(left)) name(Effects, replace)
 
-graph export "..\Analysen\graphs\Figure7.png", replace
+graph export "..\Analysen\graphs\Figure8.png", replace
 
 *******Tabelle
-esttab totalT directT using "..\Analysen\tables\table5.rtf", replace se label compress nogaps interaction(*) nobaselevels wide
-beep
+esttab totalT directT using "..\Analysen\tables\table6.rtf", replace se label compress nogaps interaction(*) nobaselevels wide nonumb
+
 
 ***********************
 *Effekte Clusters*
@@ -225,8 +237,10 @@ svy: reg lnHighestInc i.cl_dyn5 self if fem==1
 margins cl_dyn5, post coefl
 eststo Women
 
-coefplot Men Women, xline(0) drop(Men:3.cl_dyn5) /*title(Salary)*/ name(salary, replace)
-graph export "..\Analysen\graphs\Figure8.png", replace
+coefplot (Men,   drop(3.cl_dyn5) color(black) ciopts(lc(black))) ///
+         (Women,                 color(sky)   ciopts(lc(sky))) ///
+		 , xline(0) order(1.cl_dyn5 2.cl_dyn5 3.cl_dyn5 4.cl_dyn5 5.cl_dyn5)
+graph export "..\Analysen\graphs\Figure9.png", replace
 
 
 ********************************************************************************
